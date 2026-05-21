@@ -2,13 +2,14 @@ import argparse
 
 class IOHandler:
     def __init__(self):
-        self.parser = argparse.ArgumentParser(description="ASCII Art Converter")
+        self.parser = argparse.ArgumentParser(description="конвертер изображений в ascii арт")
         self._setup_arguments()
 
     def _setup_arguments(self):
-        self.parser.add_argument("-i", "--input", required=True)
-        self.parser.add_argument("-o", "--output")
-        self.parser.add_argument("-c", "--charset", default="standard")
+        self.parser.add_argument("-i", "--input", help="входной png файл")
+        self.parser.add_argument("-o", "--output", help="выходной текстовый файл")
+        self.parser.add_argument("-c", "--charset", default="standard", help="набор символов: standard, detailed, blocks, simple")
+        self.parser.add_argument("--webcam", action="store_true", help="режим веб-камеры")
 
     def parse(self):
         return self.parser.parse_args()
