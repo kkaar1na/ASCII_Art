@@ -1,12 +1,18 @@
+from typing import Dict, Any
+
+
 class ASCIIConverter:
-    def load_charset(self, name):
+    """Преобразователь пикселей изображения в текстовые символы."""
+
+    def load_charset(self, name: str) -> str:
+        """Загружает набор символов из пресета или внешнего файла."""
         try:
             with open(name, "r", encoding="utf-8") as f:
                 return f.read().strip()
-        except:
+        except Exception:
             pass
 
-        charsets = {
+        charsets: Dict[str, str] = {
             "standard": "@%#*+=-:. ",
             "detailed": "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
             "blocks": "█▓▒░ ",
@@ -18,14 +24,15 @@ class ASCIIConverter:
 
         return charsets["standard"]
 
-
-    def pixel_to_char(self, brightness, charset):
+    def pixel_to_char(self, brightness: int, charset: str) -> str:
+        """Сопоставляет значение яркости пикселя с символом из набора."""
         if len(charset) == 0:
             return " "
         index = int(brightness * (len(charset) - 1) / 255)
         return charset[index]
 
-    def convert_to_ascii(self, image, charset_name):
+    def convert_to_ascii(self, image: Any, charset_name: str) -> str:
+        """Конвертирует объект изображения в итоговую строку ASCII-арта."""
         charset = self.load_charset(charset_name)
         ascii_lines = []
 

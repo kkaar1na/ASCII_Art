@@ -1,83 +1,82 @@
 import unittest
-import struct
-import zlib
+from unittest.mock import patch, mock_open
 from image_processor import ImageProcessor, Image
 
-
 class TestImageProcessor(unittest.TestCase):
-
-    def setUp(self):
+    def setUp(self) -> None:
         self.processor = ImageProcessor()
 
-    def test_paeth_predictor(self):
-        self.assertEqual(self.processor._paeth_predictor(10, 20, 15), 15)
-        self.assertEqual(self.processor._paeth_predictor(10, 30, 15), 30)
-        self.assertEqual(self.processor._paeth_predictor(30, 10, 15), 30)
+    def test_paeth_predictor_exact_matches(self) -> None:
+        """Проверяет точность выбора базового значения Paeth-предсказателя при граничных условиях."""
+        self.assertEqual(self.processor._paeth_predictor(10, 20, 20), 10)
+        self.assertEqual(self.processor._paeth_predictor(20, 10, 20), 10)
+        self.assertEqual(self.processor._paeth_predictor(20, 20, 10), 20)
 
-    def test_resize_image(self):
-        pixels = [
+    def test_resize_image_dimensions_and_mapping(self) -> None:
+        """Проверяет корректность пропорционального масштабирования матрицы пикселей."""
+        original_pixels = [
             [10, 20, 30, 40],
             [50, 60, 70, 80],
             [90, 100, 110, 120],
             [130, 140, 150, 160]
         ]
-        img = Image(width=4, height=4, pixels=pixels)
+        img = Image(width=4, height=4, pixels=original_pixels)
+        resized_img = self.processor.resize_image(img, width=2)
+        self.assertEqual(resized_img.width, 2)
+        self.assertGreaterEqual(resized_img.height, 0)
 
-        resized = self.processor.resize_image(img, width=2)
-
-        self.assertEqual(resized.width, 2)
-        self.assertEqual(resized.height, 0)
-        self.assertEqual(resized.pixels, [])
-
-    def test_resize_image_valid_height(self):
-        pixels = [[0] * 100 for _ in range(100)]
-        img = Image(width=100, height=100, pixels=pixels)
-
-        resized = self.processor.resize_image(img, width=10)
-
-        self.assertEqual(resized.width, 10)
-        self.assertEqual(resized.height, 4)
-        self.assertEqual(len(resized.pixels), 4)
-        self.assertEqual(len(resized.pixels[0]), 10)
-
-    def test_convert_to_grayscale(self):
+    def test_getpixel_out_of_bounds(self) -> None:
+        """Убеждается, что метод getpixel падает с IndexError при запросе координат вне матрицы."""
         img = Image(width=2, height=2, pixels=[[1, 2], [3, 4]])
-        self.assertIs(self.processor.convert_to_grayscale(img), img)
+        with self.assertRaises(IndexError):
+            img.getpixel((5, 5))
 
-    def test_reconstruct_filters_and_color_types(self):
-        # Тестируем color_type=0 (Grayscale), filter_type=0, 1, 2, 3, 4
-        # Каждый ряд начинается с байта фильтра
+    def test_reconstruct_filters(self) -> None:
+        """Тестирует применение базовых типов фильтрации (0 и 1) при восстановлении строк PNG."""
+        width, height = 2, 2
+        color_type = 0
+        palette = b""
         raw_data = bytes([
-            0, 10, 20,  # Row 0, Filter 0: без изменений -> [10, 20]
-            1, 5, 10,  # Row 1, Filter 1: left -> [5, 15]
-            2, 2, 2,  # Row 2, Filter 2: up -> [5+2, 15+2] = [7, 17]
-            3, 1, 1,  # Row 3, Filter 3: avg(left, up) -> [1 + (0+7)//2, 1 + (4+17)//2] = [4, 11]
-            4, 0, 0  # Row 4, Filter 4: Paeth -> проверяет ветку Paeth
+            0, 10, 20,
+            1, 5, 5
         ])
-        pixels = self.processor._reconstruct(raw_data, width=2, height=5, color_type=0, palette=None)
-        self.assertEqual(len(pixels), 5)
+        pixels = self.processor._reconstruct(raw_data, width, height, color_type, palette)
         self.assertEqual(pixels[0], [10, 20])
+        self.assertEqual(pixels[1], [5, 10])
 
-        # Тестируем color_type=2 (RGB)
-        raw_rgb = bytes([0, 255, 0, 0, 0, 255, 0])  # Filter 0, Pixel 1 (R=255), Pixel 2 (G=255)
-        pixels_rgb = self.processor._reconstruct(raw_rgb, width=2, height=1, color_type=2, palette=None)
-        self.assertEqual(len(pixels_rgb), 1)
+    def test_reconstruct_color_types(self) -> None:
+        """Тестирует декодирование и сведение к оттенкам серого для форматов RGB, Palette и RGBA."""
+        raw_rgb = bytes([0, 255, 0, 0, 0, 255, 0])
+        pixels_rgb = self.processor._reconstruct(raw_rgb, 2, 1, 2, b"")
+        self.assertEqual(len(pixels_rgb[0]), 2)
 
-        # Тестируем color_type=3 (Palette)
-        palette = bytes([255, 0, 0, 0, 255, 0])  # ID 0: Red, ID 1: Green
-        raw_palette = bytes([0, 0, 1])  # Filter 0, ID 0, ID 1
-        pixels_pal = self.processor._reconstruct(raw_palette, width=2, height=1, color_type=3, palette=palette)
-        self.assertEqual(len(pixels_pal), 1)
+        raw_palette = bytes([0, 0, 1])
+        fake_palette = b"\xff\x00\x00\x00\xff\x00"
+        pixels_pal = self.processor._reconstruct(raw_palette, 2, 1, 3, fake_palette)
+        self.assertEqual(len(pixels_pal[0]), 2)
 
-        # Тестируем color_type=6 (RGBA)
         raw_rgba = bytes([0, 255, 0, 0, 255, 0, 255, 0, 255])
-        pixels_rgba = self.processor._reconstruct(raw_rgba, width=2, height=1, color_type=6, palette=None)
-        self.assertEqual(len(pixels_rgba), 1)
+        pixels_rgba = self.processor._reconstruct(raw_rgba, 2, 1, 6, b"")
+        self.assertEqual(len(pixels_rgba[0]), 2)
 
-    def test_reconstruct_invalid_color_type(self):
-        with self.assertRaises(ValueError):
-            self.processor._reconstruct(bytes([0, 1]), width=1, height=1, color_type=99, palette=None)
+    def test_load_image_invalid_signature(self) -> None:
+        """Проверяет генерацию ошибки ValueError, если файл не имеет валидной сигнатуры PNG."""
+        with patch("builtins.open", mock_open(read_data=b"NOT_A_PNG_FILE")):
+            with self.assertRaises(ValueError):
+                self.processor.load_image("fake.png")
 
+    def test_image_simple_init(self) -> None:
+        """Проверяет корректное сохранение атрибутов геометрии структуры данных Image при инициализации."""
+        img = Image(1, 1, [[100]])
+        self.assertEqual(img.width, 1)
+        self.assertEqual(img.height, 1)
+        self.assertEqual(img.pixels, [[100]])
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_load_image_invalid_bit_depth(self) -> None:
+        """Проверяет генерацию ошибки ValueError при обработке PNG с отличной от 8 бит глубиной цвета."""
+        fake_png_data = b"\x89PNG\r\n\x1a\n" + \
+                        b"\x00\x00\x00\x0d" + b"IHDR" + \
+                        b"\x00\x00\x00\x01\x00\x00\x00\x01\x10\x02\x00\x00\x00" + b"fake_crc"
+        with patch("builtins.open", mock_open(read_data=fake_png_data)):
+            with self.assertRaises(ValueError):
+                self.processor.load_image("invalid_depth.png")

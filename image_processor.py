@@ -1,19 +1,28 @@
 import struct
 import zlib
+from typing import List, Tuple
+
 
 class Image:
-    def __init__(self, width, height, pixels):
-        self.width = width
-        self.height = height
-        self.pixels = pixels
+    """Объект декодированного изображения с матрицей пикселей."""
 
-    def getpixel(self, pos):
+    def __init__(self, width: int, height: int, pixels: List[List[int]]) -> None:
+        """Инициализирует размеры и двумерный массив пикселей."""
+        self.width: int = width
+        self.height: int = height
+        self.pixels: List[List[int]] = pixels
+
+    def getpixel(self, pos: Tuple[int, int]) -> int:
+        """Возвращает значение яркости пикселя по координатам (x, y)."""
         x, y = pos
         return self.pixels[y][x]
 
 
 class ImageProcessor:
-    def load_image(self, path):
+    """Процессор для низкоуровневого парсинга PNG и изменения размера."""
+
+    def load_image(self, path: str) -> Image:
+        """Загружает PNG-файл, распаковывает IDAT и возвращает объект Image."""
         with open(path, "rb") as f:
             data = f.read()
 
@@ -55,7 +64,8 @@ class ImageProcessor:
         pixels = self._reconstruct(raw, width, height, color_type, palette)
         return Image(width, height, pixels)
 
-    def _paeth_predictor(self, a, b, c):
+    def _paeth_predictor(self, a: int, b: int, c: int) -> int:
+        """Вычисляет предсказание по алгоритму Paeth для дефильтрации PNG."""
         p = a + b - c
         pa = abs(p - a)
         pb = abs(p - b)
@@ -68,7 +78,8 @@ class ImageProcessor:
         else:
             return c
 
-    def _reconstruct(self, raw, width, height, color_type, palette):
+    def _reconstruct(self, raw: bytes, width: int, height: int, color_type: int, palette: bytes) -> List[List[int]]:
+        """Дефильтрует байты PNG и переводит их в матрицу оттенков серого."""
         pixels = []
 
         if color_type == 0:
@@ -144,10 +155,8 @@ class ImageProcessor:
 
         return pixels
 
-    def convert_to_grayscale(self, image):
-        return image
-
-    def resize_image(self, image, width):
+    def resize_image(self, image: Image, width: int) -> Image:
+        """Пропорционально изменяет размер изображения методом ближайшего соседа."""
         ratio = image.height / image.width
         height = int(width * ratio * 0.45)
 
