@@ -6,14 +6,28 @@ from typing import List, Tuple
 class Image:
     """Объект декодированного изображения с матрицей пикселей."""
 
-    def __init__(self, width: int, height: int, pixels: List[List[int]]) -> None:
-        """Инициализирует размеры и двумерный массив пикселей."""
-        self.width: int = width
-        self.height: int = height
-        self.pixels: List[List[int]] = pixels
+    def __init__(self, width: int, height: int,
+                 pixels: List[List[int]]) -> None:
+        """Инициализирует размеры и двумерный массив пикселей.
+
+        Args:
+            width: Ширина изображения в пикселях.
+            height: Высота изображения в пикселях.
+            pixels: Двумерный список значений яркости (0-255).
+        """
+        self.width = width
+        self.height = height
+        self.pixels = pixels
 
     def getpixel(self, pos: Tuple[int, int]) -> int:
-        """Возвращает значение яркости пикселя по координатам (x, y)."""
+        """Возвращает значение яркости пикселя по координатам.
+
+        Args:
+            pos: Кортеж (x, y) с координатами пикселя.
+
+        Returns:
+            Значение яркости от 0 до 255.
+        """
         x, y = pos
         return self.pixels[y][x]
 
@@ -22,7 +36,17 @@ class ImageProcessor:
     """Процессор для низкоуровневого парсинга PNG и изменения размера."""
 
     def load_image(self, path: str) -> Image:
-        """Загружает PNG-файл, распаковывает IDAT и возвращает объект Image."""
+        """Загружает PNG-файл и возвращает объект Image.
+
+        Args:
+            path: Путь к PNG-файлу.
+
+        Returns:
+            Объект Image с декодированными пикселями.
+
+        Raises:
+            ValueError: Если файл не является PNG.
+        """
         with open(path, "rb") as f:
             data = f.read()
 
@@ -36,18 +60,19 @@ class ImageProcessor:
         palette = None
 
         while pos < len(data):
-            length = struct.unpack(">I", data[pos:pos+4])[0]
+            length = struct.unpack(">I", data[pos:pos + 4])[0]
             pos += 4
 
-            chunk_type = data[pos:pos+4]
+            chunk_type = data[pos:pos + 4]
             pos += 4
 
-            chunk_data = data[pos:pos+length]
+            chunk_data = data[pos:pos + length]
             pos += length
             pos += 4
 
             if chunk_type == b'IHDR':
-                width, height, bit_depth, color_type = struct.unpack(">IIBB", chunk_data[:10])
+                width, height, bit_depth, color_type = struct.unpack(
+                    ">IIBB", chunk_data[:10])
                 if bit_depth != 8:
                     raise ValueError("только 8-bit png поддерживается")
 
@@ -65,7 +90,16 @@ class ImageProcessor:
         return Image(width, height, pixels)
 
     def _paeth_predictor(self, a: int, b: int, c: int) -> int:
-        """Вычисляет предсказание по алгоритму Paeth для дефильтрации PNG."""
+        """Вычисляет предсказание по алгоритму Paeth для дефильтрации PNG.
+
+        Args:
+            a: Значение левого пикселя.
+            b: Значение верхнего пикселя.
+            c: Значение диагонального пикселя.
+
+        Returns:
+            Лучшее предсказанное значение.
+        """
         p = a + b - c
         pa = abs(p - a)
         pb = abs(p - b)
@@ -78,8 +112,27 @@ class ImageProcessor:
         else:
             return c
 
-    def _reconstruct(self, raw: bytes, width: int, height: int, color_type: int, palette: bytes) -> List[List[int]]:
-        """Дефильтрует байты PNG и переводит их в матрицу оттенков серого."""
+    def _reconstruct(self,
+                     raw: bytes,
+                     width: int,
+                     height: int,
+                     color_type: int,
+                     palette: bytes) -> List[List[int]]:
+        """Дефильтрует байты PNG и переводит их в матрицу оттенков серого.
+
+        Args:
+            raw: Распакованные байты изображения.
+            width: Ширина изображения.
+            height: Высота изображения.
+            color_type: Тип цвета PNG (0,2,3,6).
+            palette: Данные палитры для color_type=3.
+
+        Returns:
+            Двумерный список значений яркости.
+
+        Raises:
+            ValueError: При неподдерживаемом color_type.
+        """
         pixels = []
 
         if color_type == 0:
@@ -101,7 +154,7 @@ class ImageProcessor:
             filter_type = raw[i]
             i += 1
 
-            row = list(raw[i:i+stride])
+            row = list(raw[i:i + stride])
             i += stride
 
             if filter_type == 0:
@@ -132,23 +185,23 @@ class ImageProcessor:
                 if color_type == 0:
                     line.append(row[x])
                 elif color_type == 2:
-                    r = row[x*3]
-                    g = row[x*3+1]
-                    b = row[x*3+2]
-                    gray = int(0.299*r + 0.587*g + 0.114*b)
+                    r = row[x * 3]
+                    g = row[x * 3 + 1]
+                    b = row[x * 3 + 2]
+                    gray = int(0.299 * r + 0.587 * g + 0.114 * b)
                     line.append(gray)
                 elif color_type == 3:
                     idx = row[x]
-                    r = palette[idx*3]
-                    g = palette[idx*3+1]
-                    b = palette[idx*3+2]
-                    gray = int(0.299*r + 0.587*g + 0.114*b)
+                    r = palette[idx * 3]
+                    g = palette[idx * 3 + 1]
+                    b = palette[idx * 3 + 2]
+                    gray = int(0.299 * r + 0.587 * g + 0.114 * b)
                     line.append(gray)
                 elif color_type == 6:
-                    r = row[x*4]
-                    g = row[x*4+1]
-                    b = row[x*4+2]
-                    gray = int(0.299*r + 0.587*g + 0.114*b)
+                    r = row[x * 4]
+                    g = row[x * 4 + 1]
+                    b = row[x * 4 + 2]
+                    gray = int(0.299 * r + 0.587 * g + 0.114 * b)
                     line.append(gray)
 
             pixels.append(line)
@@ -156,7 +209,15 @@ class ImageProcessor:
         return pixels
 
     def resize_image(self, image: Image, width: int) -> Image:
-        """Пропорционально изменяет размер изображения методом ближайшего соседа."""
+        """Пропорционально изменяет размер изображения.
+
+        Args:
+            image: Исходный объект Image.
+            width: Целевая ширина в пикселях.
+
+        Returns:
+            Новый объект Image с изменённым размером.
+        """
         ratio = image.height / image.width
         height = int(width * ratio * 0.45)
 

@@ -9,13 +9,30 @@ class ASCIIApp:
     """Консольное приложение для конвертации изображений в ASCII-арт."""
 
     def __init__(self) -> None:
-        """Инициализирует компоненты ввода-вывода, обработки и конвертации."""
-        self.io: IOHandler = IOHandler()
-        self.processor: ImageProcessor = ImageProcessor()
-        self.converter: ASCIIConverter = ASCIIConverter()
+        """Инициализирует компоненты приложения.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        self.io = IOHandler()
+        self.processor = ImageProcessor()
+        self.converter = ASCIIConverter()
 
     def run(self) -> None:
-        """Запускает основной цикл обработки и конвертации по аргументам CLI."""
+        """Запускает основной цикл обработки аргументов командной строки.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            SystemExit: При ошибке ввода или конвертации.
+        """
         try:
             args = self.io.parse()
 

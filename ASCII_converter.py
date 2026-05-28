@@ -14,7 +14,10 @@ class ASCIIConverter:
 
         charsets: Dict[str, str] = {
             "standard": "@%#*+=-:. ",
-            "detailed": "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ",
+            "detailed": (
+                "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/"
+                "\\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+            ),
             "blocks": "█▓▒░ ",
             "simple": " .:-=+*#%@"
         }

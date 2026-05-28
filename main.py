@@ -4,7 +4,14 @@ from gui_app import ASCIIAppGUI
 
 
 def main() -> None:
-    """Точка входа: запускает цикл обработки событий графического интерфейса."""
+    """Запускает цикл обработки событий графического интерфейса.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     window = ASCIIAppGUI()
