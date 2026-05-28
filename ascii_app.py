@@ -6,12 +6,33 @@ from webcam_ascii import WebcamASCII
 
 
 class ASCIIApp:
-    def __init__(self):
+    """Консольное приложение для конвертации изображений в ASCII-арт."""
+
+    def __init__(self) -> None:
+        """Инициализирует компоненты приложения.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self.io = IOHandler()
         self.processor = ImageProcessor()
         self.converter = ASCIIConverter()
 
-    def run(self):
+    def run(self) -> None:
+        """Запускает основной цикл обработки аргументов командной строки.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            SystemExit: При ошибке ввода или конвертации.
+        """
         try:
             args = self.io.parse()
 
